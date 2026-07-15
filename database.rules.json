@@ -1,0 +1,16 @@
+{
+  "rules": {
+    "config": {
+      ".read": true,
+      "adminUid": {
+        ".write": "!data.exists() || auth.uid === data.val()"
+      }
+    },
+    "auctions": {
+      "$auctionId": {
+        ".read": true,
+        ".write": "auth.uid === root.child('config/adminUid').val()"
+      }
+    }
+  }
+}
