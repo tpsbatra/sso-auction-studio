@@ -375,12 +375,27 @@ const USE_FIREBASE = !!(FIREBASE.databaseURL && window.firebase);
 
 const clone = o => JSON.parse(JSON.stringify(o));
 
+/* Shape guard: Firebase can return arrays as objects or drop empty ones.
+   normalize() coerces every array field back so no render can trip on a
+   missing .length. Belt-and-suspenders on top of JSON-string storage. */
+function normalize(s){
+  if(!s || typeof s!=="object") return s;
+  const arr = v => Array.isArray(v) ? v
+    : (v && typeof v==="object" ? Object.keys(v).sort((a,b)=>a-b).map(k=>v[k]) : []);
+  s.players = arr(s.players);
+  s.order   = arr(s.order);
+  s.history = arr(s.history);
+  s.log     = arr(s.log);
+  s.teams   = arr(s.teams).map(t => { t.squad = arr(t.squad); return t; });
+  return s;
+}
+
 /* ---- Tier-1: localStorage (unchanged behaviour) ---- */
 function localStore(){
   const subs = [];
   function load(){ try{ return JSON.parse(localStorage.getItem(KEY)); }catch(e){ return null; } }
   function save(s){ localStorage.setItem(KEY, JSON.stringify(s)); }
-  function get(){ return load() || fresh(); }
+  function get(){ return normalize(load() || fresh()); }
   function set(mutator){
     const s = get(); mutator(s); s._t = Date.now(); save(s);
     subs.forEach(fn => fn(s));
@@ -414,7 +429,7 @@ function firebaseStore(){
     const s = get();
     subs.forEach(fn => fn(s));
   });
-  function get(){ return cache || fresh(); }
+  function get(){ return normalize(cache || fresh()); }
   function set(mutator){
     if(!AdminAuth.isAdmin()) return;            // only the auctioneer writes
     const s = clone(get());                     // mutate a CLONE, never the cache
@@ -429,22 +444,14 @@ function firebaseStore(){
 
 /* ---- Admin auth: only meaningful in Tier-2 ----
    Tier-1 is single-machine, so everyone on that machine IS the admin.
-   Tier-2: the auctioneer signs in (email/password made in the console);
-   on first sign-in the app claims /config/adminUid (rules allow the
-   claim only while it is unset). Overlay & team phones never sign in. */
+   Tier-2: the auctioneer signs in with an account you create in the Firebase
+   console. Any signed-in account may write; teams/overlay never sign in, so
+   they can't. (No self-claimed adminUid — that caused stale-uid lockouts.) */
 const AdminAuth = (() => {
   let user = null;
   function init(){
     if(!USE_FIREBASE) return;
-    firebase.auth().onAuthStateChanged(u => {
-      user = u;
-      if(u){ claimAdmin(u.uid); }
-      render();
-    });
-  }
-  function claimAdmin(uid){
-    const c = firebase.database().ref("config/adminUid");
-    c.once("value").then(snap => { if(snap.val()===null) c.set(uid); });
+    firebase.auth().onAuthStateChanged(u => { user = u; render(); });
   }
   return {
     init,
@@ -1032,12 +1039,16 @@ function renderGate(){
 
 /* ---------- router + wiring ---------- */
 function render(){
-  if(renderGate()) return;
-  const s=Store.get();
-  if(VIEW==="overlay") renderOverlay(s);
-  else if(VIEW==="team") renderTeam(s);
-  else if(VIEW==="setup") renderSetup(s);
-  else renderControl(s);
+  try {
+    if(renderGate()) return;
+    const s=Store.get();
+    if(VIEW==="overlay") renderOverlay(s);
+    else if(VIEW==="team") renderTeam(s);
+    else if(VIEW==="setup") renderSetup(s);
+    else renderControl(s);
+  } catch(err){
+    console.error("render error (recoverable):", err);   // never wedge the loop
+  }
 }
 function adminSignIn(){
   const email=(gv("adm_email")||"").trim(), pass=gv("adm_pass")||"";
@@ -1076,6 +1087,7 @@ document.addEventListener("change", e=>{
 AdminAuth.init();
 Store.subscribe(()=>render());
 render();
+console.log("%cSSO Auction Studio — build v2 (json+normalize+auth-simplified)","color:#F5C451;font-weight:bold");
 </script>
 </body>
 </html>
