@@ -402,8 +402,14 @@ function firebaseStore(){
   firebase.initializeApp(FIREBASE);
   const db  = firebase.database();
   const ref = db.ref("auctions/" + AUCTION_ID);
+  // The whole auction state is stored as ONE JSON string. Firebase RTDB
+  // rewrites arrays (drops empties, turns sparse arrays into objects), which
+  // corrupts the state shape. Serialising sidesteps that entirely — we always
+  // read/write the document wholesale anyway.
   ref.on("value", snap => {
-    cache = snap.val();            // null until the auctioneer seeds it
+    const raw = snap.val();
+    try { cache = (typeof raw === "string") ? JSON.parse(raw) : null; }
+    catch(e){ cache = null; }        // ignore any legacy non-string data
     ready = true;
     const s = get();
     subs.forEach(fn => fn(s));
@@ -413,10 +419,10 @@ function firebaseStore(){
     if(!AdminAuth.isAdmin()) return;            // only the auctioneer writes
     const s = clone(get());                     // mutate a CLONE, never the cache
     mutator(s); s._t = Date.now();
-    ref.set(s);                                 // 'value' echo updates cache + subs
+    ref.set(JSON.stringify(s));                 // 'value' echo updates cache + subs
   }
   function subscribe(fn){ subs.push(fn); if(ready) fn(get()); }
-  function reset(){ if(AdminAuth.isAdmin()) ref.set(fresh()); }
+  function reset(){ if(AdminAuth.isAdmin()) ref.set(JSON.stringify(fresh())); }
   // waiting = connected but no auction started yet (readers should hold)
   return { get, set, subscribe, reset, ready:()=>ready, waiting:()=>ready && cache===null };
 }
