@@ -657,7 +657,7 @@ function renderControl(s){
   app.className="";
   app.innerHTML = `
   <div class="topbar">
-    <div class="brand">${brandLogo(40)}
+    <div class="brand">${brandLogo(60)}
       <div><div class="bt">${esc(brand().name)} · Auction Studio</div>
       <div class="bs">${esc(s.cfg.title)} — control</div></div></div>
     <div style="display:flex;align-items:center;gap:14px">
@@ -730,7 +730,7 @@ function renderControl(s){
 /* ---------- OVERLAY (transparent, for OBS) ---------- */
 function renderOverlay(s){
   const app=document.getElementById("app"); app.className=""; document.body.className="overlay";
-  const wm=`<div class="ov-wm">${brandLogo(34)}<div><div class="t">${esc(brand().name)}</div>
+  const wm=`<div class="ov-wm">${brandLogo(50)}<div><div class="t">${esc(brand().name)}</div>
     <div class="s">${esc(s.cfg.season)}</div></div></div>`;
   if(!s.overlay.visible){ app.innerHTML=""; return; }
   let inner="";
@@ -822,7 +822,7 @@ function renderTeam(s){
     || `<div style="color:var(--muted);padding:12px 4px">No players bought yet.</div>`;
 
   app.innerHTML=`
-  <div class="topbar"><div class="brand">${brandLogo(40)}
+  <div class="topbar"><div class="brand">${brandLogo(60)}
     <div><div class="bt">${esc(brand().name)} · Team console</div>
     <div class="bs">${esc(s.cfg.title)}</div></div></div>${statusPill(s)}</div>
   <div class="wrap" style="max-width:760px">
@@ -924,7 +924,7 @@ function renderSetup(s){
 
   app.innerHTML=`
   <div class="topbar">
-    <div class="brand">${brandLogo(40)}
+    <div class="brand">${brandLogo(60)}
       <div><div class="bt">${esc(d.brand.name)} · Auction Setup</div>
       <div class="bs">Configure teams, players &amp; rules</div></div></div>
     <div class="viewlinks"><a href="${baseURL()}?view=control">← Back to control</a></div>
